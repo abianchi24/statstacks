@@ -1,0 +1,517 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>StatStack NFL — Don't Go Over</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0e14; --surface: #111722; --border: #1e2a3a;
+    --accent: #f5c518; --accent2: #ff4d4d; --green: #22c55e;
+    --text: #e8edf5; --muted: #5a6a80; --card: #161e2b;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg); color: var(--text);
+    font-family: 'DM Sans', sans-serif; min-height: 100vh;
+    display: flex; flex-direction: column; align-items: center;
+    padding: 24px 16px 48px;
+    background-image:
+      radial-gradient(ellipse at 20% 0%, rgba(245,197,24,0.06) 0%, transparent 60%),
+      radial-gradient(ellipse at 80% 100%, rgba(34,197,94,0.04) 0%, transparent 50%);
+  }
+  header { width: 100%; max-width: 640px; display: flex; align-items: baseline; gap: 12px; margin-bottom: 8px; }
+  .logo { font-family: 'Bebas Neue', sans-serif; font-size: 48px; letter-spacing: 2px; color: var(--accent); line-height: 1; }
+  .tagline { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--muted); letter-spacing: 2px; text-transform: uppercase; padding-bottom: 4px; }
+  .how-to { width: 100%; max-width: 640px; font-size: 12px; color: var(--muted); font-family: 'DM Mono', monospace; text-align: center; margin-bottom: 20px; line-height: 1.8; }
+  .puzzle-picker { width: 100%; max-width: 640px; display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
+  .puzzle-chip { font-family: 'DM Mono', monospace; font-size: 11px; padding: 6px 12px; border-radius: 99px; border: 1px solid var(--border); color: var(--muted); cursor: pointer; transition: all 0.2s; background: transparent; text-transform: uppercase; letter-spacing: 1px; }
+  .puzzle-chip:hover { border-color: var(--accent); color: var(--accent); }
+  .puzzle-chip.active { background: var(--accent); color: #000; border-color: var(--accent); }
+  .puzzle-card { width: 100%; max-width: 640px; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 20px 24px; margin-bottom: 16px; display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+  .puzzle-meta { display: flex; flex-direction: column; gap: 4px; }
+  .puzzle-label { font-family: 'DM Mono', monospace; font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 2px; }
+  .puzzle-stat { font-family: 'Bebas Neue', sans-serif; font-size: 28px; color: var(--text); letter-spacing: 1px; }
+  .target-box { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
+  .target-number { font-family: 'Bebas Neue', sans-serif; font-size: 52px; color: var(--accent); line-height: 1; letter-spacing: 2px; }
+  .progress-wrap { width: 100%; max-width: 640px; margin-bottom: 16px; }
+  .progress-labels { display: flex; justify-content: space-between; font-family: 'DM Mono', monospace; font-size: 11px; color: var(--muted); margin-bottom: 6px; }
+  .progress-track { width: 100%; height: 8px; background: var(--border); border-radius: 99px; overflow: hidden; }
+  .progress-fill { height: 100%; background: linear-gradient(90deg, var(--green), var(--accent)); border-radius: 99px; transition: width 0.5s cubic-bezier(0.34, 1.56, 0.64, 1); width: 0%; }
+  .progress-fill.danger { background: linear-gradient(90deg, var(--accent), var(--accent2)); }
+  .total-display { width: 100%; max-width: 640px; display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; padding: 14px 20px; background: var(--card); border: 1px solid var(--border); border-radius: 10px; }
+  .total-label { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--muted); letter-spacing: 2px; text-transform: uppercase; }
+  .total-value { font-family: 'Bebas Neue', sans-serif; font-size: 38px; color: var(--green); letter-spacing: 2px; transition: color 0.3s; }
+  .total-value.danger { color: var(--accent); }
+  .total-value.bust { color: var(--accent2); }
+  .remaining { text-align: right; }
+  .remaining-num { font-family: 'Bebas Neue', sans-serif; font-size: 28px; color: var(--muted); }
+  .input-row { width: 100%; max-width: 640px; display: flex; gap: 10px; margin-bottom: 8px; position: relative; }
+  .player-input { flex: 1; background: var(--surface); border: 1.5px solid var(--border); border-radius: 8px; color: var(--text); font-family: 'DM Sans', sans-serif; font-size: 15px; padding: 12px 16px; outline: none; transition: border-color 0.2s; }
+  .player-input:focus { border-color: var(--accent); }
+  .player-input::placeholder { color: var(--muted); }
+  .autocomplete-list { position: absolute; top: 100%; left: 0; right: 80px; background: var(--surface); border: 1px solid var(--border); border-top: none; border-radius: 0 0 8px 8px; z-index: 10; max-height: 240px; overflow-y: auto; }
+  .autocomplete-item { padding: 10px 16px; cursor: pointer; font-size: 14px; border-bottom: 1px solid var(--border); transition: background 0.15s; }
+  .autocomplete-item:last-child { border-bottom: none; }
+  .autocomplete-item:hover { background: var(--card); }
+  .autocomplete-hint { font-family: 'DM Mono', monospace; font-size: 10px; color: var(--muted); padding: 6px 16px 8px; border-top: 1px solid var(--border); }
+  .btn { background: var(--accent); color: #000; border: none; border-radius: 8px; font-family: 'Bebas Neue', sans-serif; font-size: 18px; letter-spacing: 1px; padding: 0 20px; cursor: pointer; transition: opacity 0.2s, transform 0.1s; white-space: nowrap; }
+  .btn:hover { opacity: 0.9; }
+  .btn:active { transform: scale(0.97); }
+  .btn-stop { background: transparent; color: var(--accent); border: 1.5px solid var(--accent); font-size: 15px; padding: 0 16px; }
+  .input-hint { width: 100%; max-width: 640px; font-family: 'DM Mono', monospace; font-size: 11px; color: var(--muted); margin-bottom: 16px; padding-left: 4px; }
+  .guess-log { width: 100%; max-width: 640px; display: flex; flex-direction: column; gap: 8px; margin-bottom: 20px; }
+  .guess-row { display: flex; align-items: center; gap: 12px; padding: 12px 16px; background: var(--card); border: 1px solid var(--border); border-radius: 8px; animation: slideIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1); }
+  @keyframes slideIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+  .guess-num { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--muted); width: 20px; flex-shrink: 0; }
+  .guess-player { flex: 1; font-size: 14px; font-weight: 600; }
+  .guess-stat-val { font-family: 'DM Mono', monospace; font-size: 13px; color: var(--accent); }
+  .guess-running { font-family: 'DM Mono', monospace; font-size: 12px; color: var(--muted); text-align: right; min-width: 80px; }
+  .not-found-row { padding: 10px 16px; background: rgba(255,77,77,0.06); border: 1px solid rgba(255,77,77,0.15); border-radius: 8px; font-family: 'DM Mono', monospace; font-size: 12px; color: var(--accent2); animation: slideIn 0.25s ease; }
+  .error-msg { width: 100%; max-width: 640px; background: rgba(255,77,77,0.08); border: 1px solid rgba(255,77,77,0.2); color: var(--accent2); padding: 10px 16px; border-radius: 8px; font-size: 13px; font-family: 'DM Mono', monospace; display: none; margin-bottom: 12px; }
+  .error-msg.visible { display: block; }
+  .result-panel { width: 100%; max-width: 640px; background: var(--surface); border: 2px solid var(--accent); border-radius: 12px; padding: 32px 28px; text-align: center; display: none; flex-direction: column; gap: 16px; animation: fadeUp 0.4s cubic-bezier(0.34, 1.56, 0.64, 1); }
+  .result-panel.bust { border-color: var(--accent2); }
+  .result-panel.visible { display: flex; }
+  @keyframes fadeUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+  .result-headline { font-family: 'Bebas Neue', sans-serif; font-size: 52px; letter-spacing: 3px; line-height: 1; }
+  .result-panel.bust .result-headline { color: var(--accent2); }
+  .result-panel:not(.bust) .result-headline { color: var(--accent); }
+  .result-score { font-family: 'DM Mono', monospace; font-size: 13px; color: var(--muted); line-height: 1.7; }
+  .score-big { font-family: 'Bebas Neue', sans-serif; font-size: 64px; color: var(--green); letter-spacing: 3px; display: block; margin: 8px 0; }
+  .btn-new { background: var(--accent); color: #000; border: none; border-radius: 8px; font-family: 'Bebas Neue', sans-serif; font-size: 20px; letter-spacing: 1px; padding: 14px 32px; cursor: pointer; transition: opacity 0.2s; align-self: center; }
+  .btn-new:hover { opacity: 0.85; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">StatStack</div>
+  <div class="tagline">NFL · Don't Go Over</div>
+</header>
+
+<div class="how-to">
+  Pick players to accumulate stats. Get as close to the target as possible without going over.<br>
+  Stop whenever you're ready — each guess costs −5pts. Closer = more points.
+</div>
+
+<div class="puzzle-picker" id="puzzlePicker"></div>
+
+<div class="puzzle-card">
+  <div class="puzzle-meta">
+    <div class="puzzle-label">Category</div>
+    <div class="puzzle-stat" id="categoryDisplay">—</div>
+  </div>
+  <div class="target-box">
+    <div class="puzzle-label">Target</div>
+    <div class="target-number" id="targetDisplay">—</div>
+    <div class="puzzle-label" id="targetRange" style="font-size:9px;opacity:0.6;letter-spacing:1px;">—</div>
+  </div>
+</div>
+
+<div class="progress-wrap">
+  <div class="progress-labels">
+    <span>0</span><span id="progressLabel">0 / —</span><span id="targetLabel">—</span>
+  </div>
+  <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+</div>
+
+<div class="total-display">
+  <div>
+    <div class="total-label">Running Total</div>
+    <div class="total-value" id="totalValue">0</div>
+  </div>
+  <div class="remaining">
+    <div class="total-label">Remaining</div>
+    <div class="remaining-num" id="remainingValue">—</div>
+  </div>
+</div>
+
+<div class="input-row" id="inputRow">
+  <input class="player-input" id="playerInput" type="text" placeholder="Type a player name..." autocomplete="off" />
+  <div class="autocomplete-list" id="autocompleteList" style="display:none"></div>
+  <button class="btn" onclick="submitGuess()">Add</button>
+  <button class="btn btn-stop" onclick="stopGame()">Stop</button>
+</div>
+<div class="input-hint">🔒 Stats hidden — revealed only after you commit</div>
+
+<div class="error-msg" id="errorMsg"></div>
+<div class="guess-log" id="guessLog"></div>
+
+<div class="result-panel" id="resultPanel">
+  <div class="result-headline" id="resultHeadline">—</div>
+  <div class="result-score" id="resultScore"></div>
+  <button class="btn-new" onclick="nextPuzzle()">Next Puzzle →</button>
+</div>
+
+<script>
+// ── NFL CAREER STATS — source: Pro-Football-Reference, updated early 2026 ──
+const PUZZLES = [
+  {
+    id: 0, category: "Career Passing Yards", unit: "yds", minTarget: 40000, maxTarget: 250000,
+    players: {
+      "Tom Brady": 89214, "Drew Brees": 80358, "Peyton Manning": 71940, "Brett Favre": 71838,
+      "Aaron Rodgers": 66274, "Philip Rivers": 63984, "Ben Roethlisberger": 64088,
+      "Dan Marino": 61361, "Matt Ryan": 62792, "Matthew Stafford": 64516,
+      "Eli Manning": 57023, "John Elway": 51475, "Warren Moon": 49325,
+      "Fran Tarkenton": 47003, "Vinny Testaverde": 46233, "Carson Palmer": 46247,
+      "Kirk Cousins": 44700, "Dan Fouts": 43040, "Kerry Collins": 40922,
+      "Derek Carr": 41245, "Russell Wilson": 46966, "Joe Montana": 40551,
+      "Donovan McNabb": 37276, "Andy Dalton": 39793, "Ryan Tannehill": 34881,
+      "Tony Romo": 34183, "Josh Allen": 30102, "Matt Hasselbeck": 33502,
+      "Patrick Mahomes": 35939, "Dak Prescott": 35989, "Cam Newton": 32382,
+      "Sam Darnold": 20431, "Justin Herbert": 24820, "Joe Flacco": 48176,
+      "Kyler Murray": 20460, "Lamar Jackson": 22608, "Joe Burrow": 20810,
+      "Baker Mayfield": 28525, "Tua Tagovailoa": 18166, "Jimmy Garoppolo": 15828,
+      "Jalen Hurts": 17891, "Jordan Love": 11535, "C.J. Stroud": 10876,
+      "Geno Smith": 22168, "Marcus Mariota": 17879, "Teddy Bridgewater": 15182,
+      "Deshaun Watson": 17904, "Daniel Jones": 17683, "Caleb Williams": 7483,
+      "Justin Fields": 9039, "Gardner Minshew II": 11987, "Jameis Winston": 24792,
+      "Jared Goff": 39622, "Bryce Young": 8291, "Mac Jones": 12741,
+      "Bo Nix": 7706, "Jayden Daniels": 4830, "Tyrod Taylor": 13033, 
+      "Drake Maye": 6670, "Mitchell Trubisky": 13028, "Cam Ward": 3169, 
+      "Tyler Shough": 2384, "Brock Purdy": 11685, "Ryan Fitzpatrick": 34990,
+      "Drew Lock": 6369, "Terry Bradshaw": 27989, "Zach Wilson": 6325,
+      "Mason Rudolph": 4925, "Jacoby Brissett": 14766, "Davis Mills": 7082,
+    }
+  },
+  {
+    id: 1, category: "Career Rushing Yards", unit: "yds", minTarget: 7500, maxTarget: 25000,
+    players: {
+      "Emmitt Smith": 18355, "Walter Payton": 16726, "Frank Gore": 16000,
+      "Barry Sanders": 15269, "Curtis Martin": 14101, "LaDainian Tomlinson": 13684,
+      "Eric Dickerson": 13259, "Tony Dorsett": 12739, "Jim Brown": 12312,
+      "Marshall Faulk": 12279, "Marcus Allen": 12243, "Franco Harris": 12120,
+      "Thurman Thomas": 12074, "Fred Taylor": 11695, "Jerome Bettis": 13662,
+      "Corey Dillon": 11241, "Tiki Barber": 10449, "Ladell Betts": 3326,
+      "Adrian Peterson": 14918, "Steven Jackson": 11438, "Thomas Jones": 10591,
+      "Edgerrin James": 12246, "Ricky Williams": 10009, "Clinton Portis": 9923,
+      "Jamal Lewis": 10607, "Chris Johnson": 9651, "DeMarco Murray": 7174,
+      "Marshawn Lynch": 10413, "Arian Foster": 6472, "LeSean McCoy": 11102,
+      "Matt Forte": 9796, "Jamaal Charles": 7563, "Eddie Lacy": 3614,
+      "Le'Veon Bell": 6554, "Ezekiel Elliott": 9130, "Todd Gurley": 6082,
+      "Derrick Henry": 13018, "Dalvin Cook": 5993, "Christian McCaffrey": 7395,
+      "Nick Chubb": 7349, "Saquon Barkley": 8356, "Joe Mixon": 7428,
+      "Alvin Kamara": 7250, "Jonathan Taylor": 7598, "Austin Ekeler": 4765,
+      "Aaron Jones": 7626, "Josh Jacobs": 7803, "David Montgomery": 6115,
+      "Raheem Mostert": 3895, "Tony Pollard": 5782, "James Conner": 6065,
+      "Shaun Alexander": 9453, "Maurice Jones-Drew": 8167, "Mark Ingram": 8111,
+      "Devin Singletary": 4923, "D'Andre Swift": 4775, "Najee Harris": 4373,
+      "James Cook": 4259, "Bijan Robinson": 3910, "Kenneth Walker III": 3555,
+      "Travis Etienne": 3798, "Rico Dowdle": 2540, "TreVeyon Henderson": 911,
+      "Rhamondre Stevenson": 3669, "Breece Hall": 3398, "Isiah Pacheco": 2537,
+      "Ashton Jeanty": 975, "Omarion Hampton": 545, "RJ Harvey": 540,
+      "Woody Marks": 703, "Quinshon Judkins": 827, "Kenneth Gainwell": 1722,
+      "Chase Brown": 2188, "Cam Skattebo": 410, "Jacory Croskey-Merritt": 805,
+      "Kyren Williams": 3834, "Jahmyr Gibbs": 3580, 
+    }
+  },
+  {
+    id: 2, category: "Career Rushing TDs", unit: "TDs", minTarget: 60, maxTarget: 250,
+    players: {
+      "Emmitt Smith": 164, "LaDainian Tomlinson": 145, "Marcus Allen": 123,
+      "Derrick Henry": 122, "Adrian Peterson": 120, "Walter Payton": 110,
+      "Jim Brown": 106, "Priest Holmes": 86, "Marshall Faulk": 100,
+      "Shaun Alexander": 100, "Barry Sanders": 99, "Edgerrin James": 80,
+      "Curtis Martin": 90, "Jerome Bettis": 91, "Franco Harris": 91,
+      "Eric Dickerson": 90, "Frank Gore": 81, "Marshawn Lynch": 85,
+      "Christian McCaffrey": 62, "Alvin Kamara": 61, "Corey Dillon": 82,
+      "Steven Jackson": 69, "Clinton Portis": 75, "Cam Newton": 75,
+      "Josh Allen": 79, "Ezekiel Elliott": 74, "Todd Gurley": 67,
+      "Eddie George": 68, "Joe Mixon": 60, "Dalvin Cook": 47,
+      "Aaron Jones": 52, "Austin Ekeler": 43, "Chris Johnson": 55,
+      "Nick Chubb": 54, "Saquon Barkley": 55, "Arian Foster": 54,
+      "Jonathan Taylor": 69, "Lamar Jackson": 35, "David Montgomery": 59,
+      "Kareem Hunt": 55, "Le'Veon Bell": 42, "James Conner": 60,
+      "Raheem Mostert": 34, "LeSean McCoy": 73, "DeMarco Murray": 59,
+      "Ricky Williams": 66, "Jamal Lewis": 58, "Matt Forte": 54,
+      "Josh Jacobs": 74, "Maurice Jones-Drew": 68, "Mark Ingram": 65,
+      "Thurman Thomas": 65, "O.J. Simpson": 61, "Latavius Murray": 59,
+      "Arian Foster": 54, "Jamaal Charles": 44, "Austin Ekeler": 43,
+      "Jahmyr Gibbs": 39, "David Johnson": 39, "D'Andre Swift": 38, 
+      "Ray Rice": 37, "Ahmad Bradshaw": 36, "Reggie Bush": 36, 
+      "Aaron Rodgers": 36, "Michael Vick": 36, "Kyren Williams": 36,
+      "Lamar Jackson": 35, "Alfred Morris": 35, "Leonard Fournette": 34,
+      "Kenyan Drake": 33, "Tony Pollard": 33, "James Cook": 32, 
+      "Lamar Miller": 32, "Jamaal Williams": 32, "Russell Wilson": 31,
+      "Doug Martin": 30, "Kenneth Walker III": 29, "Chris Carson": 24,
+      "Thomas Rawls": 7, "Myles Gaskin": 7, "Bucky Irving": 9,
+      "Bijan Robinson": 25, "Breece Hall": 18, "Travis Etienne Jr.": 25, 
+
+    }
+  },
+  {
+    id: 3, category: "Career Receiving Yards", unit: "yds", minTarget: 12000, maxTarget: 35000,
+    players: {
+      "Jerry Rice": 22895, "Larry Fitzgerald": 17492, "Terrell Owens": 15934,
+      "Randy Moss": 15292, "Isaac Bruce": 15208, "Tony Gonzalez": 15127,
+      "Tim Brown": 14934, "Marvin Harrison": 14580, "Reggie Wayne": 14345,
+      "Steve Smith Sr.": 14731, "James Lofton": 14004, "Andre Johnson": 14185,
+      "Henry Ellard": 13777, "Torry Holt": 13382, "Julio Jones": 13703,
+      "Travis Kelce": 13002, "Anquan Boldin": 13779, "Art Monk": 12721,
+      "DeAndre Hopkins": 13295, "Antonio Brown": 12291, "Brandon Marshall": 12351,
+      "Jason Witten": 13046, "Shannon Sharpe": 10060, "Tyreek Hill": 11363,
+      "Calvin Johnson": 11619, "DeSean Jackson": 11263, "Mike Evans": 13052,
+      "Davante Adams": 12633, "Justin Jefferson": 8480, "Stefon Diggs": 11504,
+      "Wes Welker": 9924, "A.J. Green": 10514, "Adam Thielen": 8497,
+      "Rob Gronkowski": 9286, "Cooper Kupp": 8369, "CeeDee Lamb": 7416,
+      "Ja'Marr Chase": 6837, "Tee Higgins": 5441, "Garrett Wilson": 3644,
+      "Michael Thomas": 6569, "Diontae Johnson": 4738, "Amari Cooper": 10033,
+      "Keenan Allen": 12051, "Odell Beckham Jr.": 7987, "T.Y. Hilton": 9812,
+      "Emmanuel Sanders": 9245, "Golden Tate": 8278, "Doug Baldwin": 6563,
+      "Antonio Gates": 11841, "Michael Irvin": 11904, "Chad Johnson": 11059,
+      "T.Y. Hilton": 9812, "Brandin Cooks": 9811, "Demariyus Thomas": 9763,
+      "Marques Colston": 9759, "Tyler Lockett": 8885, "Zach Ertz": 8592,
+      "Jordy Nelson": 8587, "Plaxico Burress": 8499, "Robert Woods": 8233,
+      "Mike Wallace": 8072, "A.J. Brown": 8029, "George Kittle": 8008, 
+      "Jarvis Landry": 7870, "Chris Godwin": 7626, "Vernon Davis": 7562, 
+      "Dez Bryant": 7506, "D.K. Metcalf": 7174, "Allen Robinson": 7058,
+      "Terry McLaurin": 6961, "Cris Collinsworth": 6698, "Courtland Sutton": 6537,
+      "Amon-Ra St. Brown": 6252, "Mark Andrews": 5952, "Jaxon Smith-Njigba": 3551,
+      
+    }
+  },
+  {
+    id: 4, category: "Career Passing TDs", unit: "TDs", minTarget: 120, maxTarget: 800,
+    players: {
+      "Tom Brady": 649, "Drew Brees": 571, "Peyton Manning": 539, "Brett Favre": 508,
+      "Aaron Rodgers": 527, "Philip Rivers": 425, "Dan Marino": 420,
+      "Ben Roethlisberger": 418, "Fran Tarkenton": 342, "Matt Ryan": 381,
+      "John Elway": 300, "Warren Moon": 291, "Matthew Stafford": 423,
+      "Joe Montana": 273, "Vinny Testaverde": 275, "Carson Palmer": 294,
+      "Eli Manning": 366, "Kirk Cousins": 298, "Russell Wilson": 353,
+      "Andy Dalton": 254, "Derek Carr": 257, "Tony Romo": 248,
+      "Patrick Mahomes": 267, "Josh Allen": 220, "Dak Prescott": 243,
+      "Donovan McNabb": 234, "Cam Newton": 194, "Joe Flacco": 272,
+      "Jay Cutler": 227, "Matt Hasselbeck": 212, "Ryan Tannehill": 216,
+      "Lamar Jackson": 187, "Joe Burrow": 157, "Sam Bradford": 103,
+      "Justin Herbert": 163, "Kyler Murray": 121, "Baker Mayfield": 197,
+      "Geno Smith": 124, "Jalen Hurts": 110,
+      "Tua Tagovailoa": 120, "Jimmy Garoppolo": 96, "Sam Darnold": 123,
+      "Teddy Bridgewater": 75, "Marcus Mariota": 107, "Jordan Love": 83,
+      "Jared Goff": 256, "Drew Bledsoe": 251, "Steve Young": 232, 
+      "Terry Bradshaw": 212, "Mark Brunell": 184, "Rich Gannon": 180,
+      "Troy Aikman": 165, "Carson Wentz": 159, "Jameis Winston": 156,
+      "Bart Starr": 152, "Matt Schaub": 136, "Deshaun Watson": 123,
+      "Trevor Lawrence": 98, "Daniel Jones": 89, "Brock Purdy": 84,
+      "Case Keenum": 79, "Nick Foles": 82, "Mitchell Trubisky": 78,
+      "Jacoby Brissett": 76, "Tyrod Taylor": 73, "Gardner Minshew II": 68,
+      "Mac Jones": 67, "C.J. Stroud": 62, "Chad Henne": 60, 
+      "Byron Leftwich": 58, "Bo Nix": 54, "Justin Fields": 52, 
+      "Blaine Gabbert": 51, "Bryce Young": 49, "Caleb Williams": 47,
+      "Drake Maye": 46, "Vince Young": 46, "Drew Lock": 34, "Mohamed Sanu": 4,
+      "Ryan Fitzpatrick": 223,
+
+    }
+  }
+];
+
+// ── STATE ──────────────────────────────────────────────────────────────────────
+let currentPuzzleIdx = 0;
+let puzzle = PUZZLES[0];
+let runningTotal = 0;
+let guesses = [];
+let gameOver = false;
+let usedPlayers = new Set();
+let searchTimeout = null;
+
+// ── HELPERS ───────────────────────────────────────────────────────────────────
+function randTarget(min, max, step = 500) {
+  const steps = Math.floor((max - min) / step);
+  return min + Math.floor(Math.random() * (steps + 1)) * step;
+}
+
+// ── INIT ──────────────────────────────────────────────────────────────────────
+function init() {
+  puzzle = PUZZLES[currentPuzzleIdx];
+  // Generate a fresh random target each time this puzzle is loaded
+  puzzle.target = randTarget(puzzle.minTarget, puzzle.maxTarget,
+    puzzle.unit === 'TDs' ? 5 : 500);
+  runningTotal = 0; guesses = []; gameOver = false; usedPlayers = new Set();
+
+  document.getElementById('categoryDisplay').textContent = puzzle.category;
+  document.getElementById('targetDisplay').textContent = puzzle.target.toLocaleString();
+  document.getElementById('targetLabel').textContent = puzzle.target.toLocaleString();
+  document.getElementById('targetRange').textContent =
+    `range: ${puzzle.minTarget.toLocaleString()} – ${puzzle.maxTarget.toLocaleString()}`;
+  document.getElementById('totalValue').textContent = '0';
+  document.getElementById('totalValue').className = 'total-value';
+  document.getElementById('remainingValue').textContent = puzzle.target.toLocaleString();
+  document.getElementById('progressFill').style.width = '0%';
+  document.getElementById('progressFill').className = 'progress-fill';
+  document.getElementById('progressLabel').textContent = `0 / ${puzzle.target.toLocaleString()}`;
+  document.getElementById('guessLog').innerHTML = '';
+  document.getElementById('resultPanel').className = 'result-panel';
+  document.getElementById('inputRow').style.display = 'flex';
+  document.getElementById('errorMsg').className = 'error-msg';
+  document.getElementById('playerInput').value = '';
+  document.getElementById('autocompleteList').style.display = 'none';
+  document.getElementById('playerInput').focus();
+  renderChips();
+}
+
+function renderChips() {
+  const picker = document.getElementById('puzzlePicker');
+  picker.innerHTML = '';
+  PUZZLES.forEach((p, i) => {
+    const c = document.createElement('button');
+    c.className = 'puzzle-chip' + (i === currentPuzzleIdx ? ' active' : '');
+    // Strip "Career " prefix for chip label
+    c.textContent = p.category.replace('Career ', '');
+    c.onclick = () => { currentPuzzleIdx = i; init(); };
+    picker.appendChild(c);
+  });
+}
+
+// ── AUTOCOMPLETE ──────────────────────────────────────────────────────────────
+document.getElementById('playerInput').addEventListener('input', function () {
+  const q = this.value.trim();
+  const list = document.getElementById('autocompleteList');
+  if (!q || q.length < 1) { list.style.display = 'none'; return; }
+
+  clearTimeout(searchTimeout);
+  searchTimeout = setTimeout(() => {
+    const matches = Object.keys(puzzle.players)
+      .filter(n => n.toLowerCase().includes(q.toLowerCase()) && !usedPlayers.has(n))
+      .slice(0, 8);
+
+    list.innerHTML = '';
+    if (!matches.length) { list.style.display = 'none'; return; }
+
+    matches.forEach(name => {
+      const item = document.createElement('div');
+      item.className = 'autocomplete-item';
+      item.textContent = name; // name only — no stat value
+      item.onclick = () => {
+        document.getElementById('playerInput').value = name;
+        list.style.display = 'none';
+        submitGuess();
+      };
+      list.appendChild(item);
+    });
+
+    const hint = document.createElement('div');
+    hint.className = 'autocomplete-hint';
+    hint.textContent = '🔒 Stats hidden until after you commit';
+    list.appendChild(hint);
+    list.style.display = 'block';
+  }, 150);
+});
+
+document.getElementById('playerInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter') submitGuess();
+  if (e.key === 'Escape') document.getElementById('autocompleteList').style.display = 'none';
+});
+
+document.addEventListener('click', e => {
+  if (!e.target.closest('.input-row')) document.getElementById('autocompleteList').style.display = 'none';
+});
+
+// ── GAME LOGIC ────────────────────────────────────────────────────────────────
+function showError(msg) {
+  const el = document.getElementById('errorMsg');
+  el.textContent = msg;
+  el.className = 'error-msg visible';
+  setTimeout(() => el.className = 'error-msg', 2800);
+}
+
+function submitGuess() {
+  if (gameOver) return;
+  const input = document.getElementById('playerInput').value.trim();
+  if (!input) return;
+  document.getElementById('autocompleteList').style.display = 'none';
+
+  const matchKey = Object.keys(puzzle.players).find(k => k.toLowerCase() === input.toLowerCase());
+
+  if (!matchKey) {
+    const log = document.getElementById('guessLog');
+    const row = document.createElement('div');
+    row.className = 'not-found-row';
+    row.textContent = `"${input}" not found in this puzzle. Check spelling or try another player.`;
+    log.prepend(row);
+    setTimeout(() => row.remove(), 3500);
+    document.getElementById('playerInput').value = '';
+    return;
+  }
+
+  if (usedPlayers.has(matchKey)) {
+    showError(`${matchKey} already used!`);
+    document.getElementById('playerInput').value = '';
+    return;
+  }
+
+  const statVal = puzzle.players[matchKey];
+  usedPlayers.add(matchKey);
+  runningTotal += statVal;
+  guesses.push({ name: matchKey, val: statVal, total: runningTotal });
+  document.getElementById('playerInput').value = '';
+  updateUI();
+  if (runningTotal > puzzle.target) endGame(true);
+}
+
+function updateUI() {
+  const pct = Math.min((runningTotal / puzzle.target) * 100, 100);
+  const fill = document.getElementById('progressFill');
+  fill.style.width = pct + '%';
+  fill.className = 'progress-fill' + (pct > 85 ? ' danger' : '');
+
+  const totalEl = document.getElementById('totalValue');
+  totalEl.textContent = runningTotal.toLocaleString();
+  totalEl.className = runningTotal > puzzle.target ? 'total-value bust' : pct > 85 ? 'total-value danger' : 'total-value';
+
+  const remaining = puzzle.target - runningTotal;
+  document.getElementById('remainingValue').textContent = remaining > 0 ? remaining.toLocaleString() : '0';
+  document.getElementById('progressLabel').textContent = `${runningTotal.toLocaleString()} / ${puzzle.target.toLocaleString()}`;
+
+  const g = guesses[guesses.length - 1];
+  const row = document.createElement('div');
+  row.className = 'guess-row';
+  row.innerHTML = `
+    <span class="guess-num">#${guesses.length}</span>
+    <span class="guess-player">${g.name}</span>
+    <span class="guess-stat-val">+${g.val.toLocaleString()} ${puzzle.unit}</span>
+    <span class="guess-running">= ${g.total.toLocaleString()}</span>
+  `;
+  document.getElementById('guessLog').prepend(row);
+}
+
+function stopGame() {
+  if (gameOver || guesses.length === 0) return;
+  endGame(false);
+}
+
+function endGame(busted) {
+  gameOver = true;
+  document.getElementById('inputRow').style.display = 'none';
+  const guessCost = guesses.length * 5;
+  const diff = puzzle.target - runningTotal;
+  const proximity = busted ? 0 : Math.max(0, 100 - Math.round((diff / puzzle.target) * 100));
+  const score = busted ? 0 : Math.max(0, proximity - guessCost);
+  const panel = document.getElementById('resultPanel');
+
+  if (busted) {
+    panel.className = 'result-panel bust visible';
+    document.getElementById('resultHeadline').textContent = 'BUSTED!';
+    document.getElementById('resultScore').innerHTML =
+      `Went over by <strong>${(runningTotal - puzzle.target).toLocaleString()}</strong> ${puzzle.unit}. Target: <strong>${puzzle.target.toLocaleString()}</strong><br><br><span class="score-big">0 pts</span>`;
+  } else {
+    const pct = Math.round(((puzzle.target - diff) / puzzle.target) * 100);
+    panel.className = 'result-panel visible';
+    document.getElementById('resultHeadline').textContent = diff === 0 ? 'PERFECT!' : 'NICE STOP!';
+    document.getElementById('resultScore').innerHTML =
+      `Stopped at <strong>${runningTotal.toLocaleString()}</strong> — <strong>${diff.toLocaleString()}</strong> ${puzzle.unit} shy (${pct}% of target)<br>
+      ${guesses.length} guess${guesses.length !== 1 ? 'es' : ''} × −5 = −${guessCost}pts &nbsp;|&nbsp; Proximity: +${proximity}pts<br><br>
+      <span class="score-big">${score} pts</span>`;
+  }
+}
+
+function nextPuzzle() {
+  currentPuzzleIdx = (currentPuzzleIdx + 1) % PUZZLES.length;
+  init();
+}
+
+init();
+</script>
+</body>
+</html>
